@@ -1,65 +1,72 @@
-# Database
+# Sách Nhà Đậu – Website bán sách cũ tích hợp quản trị tồn kho
 
-Thư mục lưu các tài liệu và thành phần liên quan đến cơ sở dữ liệu của hệ thống (MySQL 8.0).
+> Nhóm 42 – Module 6: Data Design & System Environment
 
-## Danh sách bảng (12 bảng)
+Website bán sách cũ cho trẻ em, tích hợp quản lý lô nhập, tồn kho (trạng thái từng cuốn theo SKU), đơn hàng, tiền cọc, hàng chờ và kiểm kê.
 
-| # | Bảng | Mô tả | Migration |
-|---|---|---|---|
-| 1 | `customer` | Khách hàng | 001 |
-| 2 | `category` | Thể loại sách | 002 |
-| 3 | `book_batch` | Lô nhập sách | 003 |
-| 4 | `book` | Sách (PK là `sku`) | 004 |
-| 5 | `book_image` | Hình ảnh sách | 005 |
-| 6 | `shipping_rate` | Phí vận chuyển theo khu vực | 006 |
-| 7 | `orders` | Đơn hàng | 007 |
-| 8 | `order_item` | Chi tiết đơn (bảng liên kết Order–Book) | 008 |
-| 9 | `payment` | Thanh toán / tiền cọc | 009 |
-| 10 | `hold_queue` | Hàng chờ sách | 010 |
-| 11 | `stocktake` | Phiếu kiểm kê (Post-MVP) | 011 |
-| 12 | `stocktake_item` | Chi tiết kiểm kê (Post-MVP) | 012 |
+## Cấu trúc thư mục
 
-## Quyết định thiết kế cần lưu ý
-
-- **Bảng `orders`** (không phải `order`): `ORDER` là từ khóa SQL.
-- **Lưu `subtotal_amount`, `shipping_fee`, `total_amount`, `unit_price`, `recipient_*`** trong đơn hàng để bảo toàn giá trị tại thời điểm đặt, không bị đổi khi giá sách / thông tin khách thay đổi.
-- **`created_by`** (book_batch, stocktake) trỏ tới `auth_user.id` của Django. Bảng này do Django tạo, nên FK được thêm bằng `optional/900_add_django_user_fk.sql` sau khi chạy `python manage.py migrate`.
-- Chưa có bảng `Book_Status_Log` (DS10 trong DFD–ERD Matrix đang ghi *Missing in ERD*) – cần nhóm quyết định.
-- Các giá trị trạng thái (`book_status`, `order_status`, `payment_status`, `queue_status`) hiện là `VARCHAR`; cần thống nhất với Data Dictionary.
-
-## Chạy migration
-
-**Tự động (Docker):** các file trong `migrations/` được mount vào `docker-entrypoint-initdb.d`, MySQL tự chạy theo thứ tự tên file khi `docker compose up -d` lần đầu.
-
-**Thủ công:**
-
-```bash
-for f in database/migrations/*.sql; do
-  mysql -uroot -p sach_nha_dau < "$f"
-done
+```
+sach-nha-dau/
+├── backend/            # Source backend (Django) – skeleton
+├── database/
+│   ├── migrations/     # 001–012: tạo bảng theo Relational Schema
+│   ├── sample_data/    # Dữ liệu mẫu
+│   ├── optional/       # Script chạy tay (FK tới auth_user của Django)
+│   ├── seed.sh         # Nạp sample data vào container MySQL
+│   └── README.md
+├── docs/               # ERD, System Architecture, tài liệu đề cương, bằng chứng chạy DB
+├── docker-compose.yml  # MySQL 8 cho môi trường phát triển
+├── .env.example        # Mẫu biến môi trường
+└── README.md
 ```
 
-## Nạp dữ liệu mẫu
+## Technology Stack
+
+| Thành phần | Công nghệ |
+|---|---|
+| Database | MySQL 8.0 |
+| Backend | Django (Python) |
+| Môi trường | Docker / Docker Compose |
+| Quản lý mã nguồn | Git, GitHub |
+
+## Hướng dẫn chạy database
+
+Yêu cầu: cài [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 
 ```bash
+# 1. Tạo file biến môi trường
+cp .env.example .env        # sau đó mở .env và đổi MYSQL_ROOT_PASSWORD
+
+# 2. Khởi động MySQL – các migration 001–012 tự chạy ở lần khởi tạo đầu tiên
+docker compose up -d
+
+# 3. Nạp dữ liệu mẫu
 bash database/seed.sh
+
+# 4. Kiểm tra
+docker compose exec db mysql -uroot -p sach_nha_dau -e "SHOW TABLES;"
 ```
 
-Trên Windows PowerShell (không có bash):
+Khởi tạo lại từ đầu (xóa toàn bộ dữ liệu): `docker compose down -v && docker compose up -d`
 
-```powershell
-Get-ChildItem database\sample_data\*.sql | ForEach-Object {
-  Get-Content $_ -Raw -Encoding UTF8 | docker compose exec -T db mysql -uroot -p"<mật_khẩu>" --default-character-set=utf8mb4 sach_nha_dau
-}
-```
+## Tài liệu thiết kế
 
-Thứ tự bắt buộc (do khóa ngoại): `001_seed_reference` → `002_seed_books` → `003_seed_orders` → `004_seed_stocktake`.
+- ERD: [`docs/ERD.png`](docs/ERD.png)
+- Kiến trúc hệ thống: [`docs/System Architecture.pdf`](docs/System%20Architecture.pdf)
+- Chi tiết database: [`database/README.md`](database/README.md)
 
-## Kiểm tra nhanh
+## Thành viên nhóm
 
-```sql
-SHOW TABLES;
-SELECT COUNT(*) FROM book;
-SELECT o.order_id, c.full_name, o.order_status, o.total_amount
-FROM orders o JOIN customer c ON c.customer_id = o.customer_id;
-```
+| Họ tên | Vai trò |
+|---|---|
+| Bùi Thị Châu Giang | Repository & README, Database/Migration, Môi trường |
+| Phan Thị Minh Nguyệt | ERD & Relational Schema |
+| Phan Thị Minh Nguyệt | DFD–ERD Consistency Matrix |
+| Trần Nhật Lệ  | Architecture & Wireframes |
+
+## Quy ước làm việc
+
+- Làm việc trên branch riêng, tạo Pull Request vào `main`.
+- Commit message rõ ràng, ví dụ: `Add orders migration`.
+- Không commit `.env` hoặc mật khẩu thật.
