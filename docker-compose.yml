@@ -1,0 +1,23 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: sach_nha_dau_db
+    restart: unless-stopped
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      # Các file .sql trong thư mục này tự chạy theo thứ tự tên khi DB được khởi tạo lần đầu
+      - ./database/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db_data:

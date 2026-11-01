@@ -1,0 +1,28 @@
+-- 004: Bảng BOOK (Sách)
+CREATE TABLE IF NOT EXISTS book (
+  sku                VARCHAR(30)      NOT NULL,
+  batch_id           INT              NOT NULL,
+  category_id        VARCHAR(10)      NOT NULL,
+  title              VARCHAR(255)     NOT NULL,
+  author             VARCHAR(150)     NULL,
+  age_min            TINYINT UNSIGNED NOT NULL,
+  age_max            TINYINT UNSIGNED NOT NULL,
+  language           VARCHAR(50)      NOT NULL,
+  condition_level    VARCHAR(30)      NOT NULL,
+  defect_description TEXT             NULL,
+  original_price     DECIMAL(10,2)    NULL,
+  selling_price      DECIMAL(10,2)    NOT NULL,
+  cost_price         DECIMAL(10,2)    NOT NULL,
+  book_status        VARCHAR(20)      NOT NULL DEFAULT 'Available',
+  is_hidden          BOOLEAN          NOT NULL DEFAULT FALSE,
+  short_description  TEXT             NULL,
+  created_at         DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (sku),
+  KEY idx_book_batch (batch_id),
+  KEY idx_book_category (category_id),
+  KEY idx_book_status (book_status),
+  CONSTRAINT fk_book_batch    FOREIGN KEY (batch_id)    REFERENCES book_batch (batch_id),
+  CONSTRAINT fk_book_category FOREIGN KEY (category_id) REFERENCES category (category_id),
+  CONSTRAINT chk_book_age     CHECK (age_min <= age_max),
+  CONSTRAINT chk_book_prices  CHECK (selling_price >= 0 AND cost_price >= 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
